@@ -1,4 +1,4 @@
-# Portable OpenSSH
+# Portable OpenSSH with security scan
 
 [![C/C++ CI](../../actions/workflows/c-cpp.yml/badge.svg)](../../actions/workflows/c-cpp.yml)
 [![VM CI](../../actions/workflows/vm.yml/badge.svg)](../../actions/workflows/vm.yml)
