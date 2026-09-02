@@ -46,7 +46,7 @@ jobs:
         env:
           OPENAI_KEY: ${{ secrets.OPENAI_KEY || secrets.OPENAI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          config.model: "gpt-5.4"
+          config.model: "gpt-5.4-mini"
           #config.fallback_models: '["gpt-5.4"]'
           #OPENAI.ORG: ${{ secrets.OPENAI_ORG }}
           
