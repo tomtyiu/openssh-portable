@@ -1,0 +1,95 @@
+name: PR Agent Security
+#This is PR agent
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review, review_requested]
+  issue_comment:
+  pull_request_review_comment:
+    types: [created, edited]
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      run_agent: ${{ steps.check.outputs.run_agent }}
+      command: ${{ steps.check.outputs.command }}
+    steps:
+      - id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = (context.payload.comment?.body || '').trim();
+            const assoc = context.payload.comment?.author_association || '';
+            const trusted = ['OWNER', 'MEMBER', 'COLLABORATOR'].includes(assoc);
+            const match = body.match(/^\/pr-agent(?:\s+(review|summary|help))?$/);
+
+            core.setOutput('run_agent', String(trusted && !!match));
+            core.setOutput('command', match?.[1] || '');
+
+  pr_agent_job:
+    needs: gate
+    if: needs.gate.outputs.run_agent == 'true' || github.event_name == 'pull_request_target'
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: write
+      checks: write
+
+    name: Run pr agent on every pull request, respond to user comments
+
+    steps:
+      - name: PR Agent action step
+        id: pragent
+        uses: the-pr-agent/pr-agent@main
+        env:
+          OPENAI_KEY: ${{ secrets.OPENAI_KEY || secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          config.model: "gpt-5.4"
+          #config.fallback_models: '["gpt-5.4"]'
+          #OPENAI.ORG: ${{ secrets.OPENAI_ORG }}
+          
+          PR_REVIEWER.REQUIRE_TESTS_REVIEW: "false" # Disable tests review
+          PR_CODE_SUGGESTIONS.NUM_CODE_SUGGESTIONS: 7 # Increase number of code suggestions
+          # Custom review instructions
+          github_action_config.pr_actions: '["opened", "reopened", "synchronize", "ready_for_review", "review_requested"]'
+          github_action_config.auto_describe: "true"
+          github_action_config.auto_review: "true"
+          github_action_config.auto_improve: "true"
+          github_action_config.handle_push_trigger: "true"
+          github_action_config.push_commands: '["/describe", "/review"]'
+          pr_reviewer.extra_instructions: |
+            Perform a security-focused review of the pull request.
+
+            Check specifically for:
+            - SQL injection
+            - command injection
+            - code injection
+            - cross-site scripting (XSS)
+            - SSRF
+            - path traversal
+            - authentication vulnerabilities
+            - authorization vulnerabilities
+            - privilege escalation
+            - exposed API keys or secrets
+            - insecure credential handling
+            - unsafe file operations
+            - insecure deserialization
+            - weak cryptography
+            - unsafe network requests
+            - unsafe subprocess execution
+            - dependency vulnerabilities
+            - sensitive data exposure
+            - improper input validation
+            - race conditions
+            - prompt injection vulnerabilities
+            - unsafe LLM tool calls
+            - excessive AI agent permissions
+
+            For each security issue:
+            1. Identify the affected code.
+            2. Explain the vulnerability.
+            3. Explain the potential attack scenario.
+            4. Assign severity: LOW, MEDIUM, HIGH, or CRITICAL.
+            5. Recommend a secure fix.
